@@ -1,0 +1,5 @@
+output
+*.txt
+.vscode
+__pycache__
+*.pyc
