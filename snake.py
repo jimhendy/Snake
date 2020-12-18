@@ -1,8 +1,7 @@
 import logging
 
-import numpy as np
-
 import grid
+from point import Point
 
 logger = logging.getLogger(__name__)
 
@@ -13,14 +12,14 @@ class Snake:
 
         self.direction_string = "right"
         self.directions = {
-            "right": np.array([0, +1]),
-            "left": np.array([0, -1]),
-            "up": np.array([-1, 0]),
-            "down": np.array([+1, 0]),
+            "right": Point(+1, 0),
+            "left": Point(-1, 0),
+            "up": Point(0, -1),
+            "down": Point(0, +1),
         }
         self.direction_step = self.directions[self.direction_string]
 
-        self.head_position = np.array([self.grid_size // 2, self.grid_size // 2])
+        self.head_position = Point(self.grid_size // 2, self.grid_size // 2)
         self.positions = [  # Tail at the start, head at the end
             self.head_position - self.direction_step,
             self.head_position.copy(),
@@ -45,17 +44,17 @@ class Snake:
     def is_valid_inside_grid(self):
         for pos in self.positions:
             if (
-                pos[0] < 0
-                or pos[1] < 0
-                or pos[0] >= self.grid_size
-                or pos[1] >= self.grid_size
+                pos.x < 0
+                or pos.y < 0
+                or pos.x >= self.grid_size
+                or pos.y >= self.grid_size
             ):
                 logger.info("Snake exited game grid")
                 return False
         return True
 
     def is_valid_crossed_itself(self):
-        if len({tuple(e) for e in self.positions}) != self.length:
+        if len(set(self.positions)) != self.length:
             logger.info("Snake crossed itself")
             logger.info(self.positions)
             return False

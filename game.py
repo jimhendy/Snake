@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class SnakeGame:
+    #@profile
     def __init__(self, grid_size=10, game_type="human"):
         self.grid_size = grid_size
         assert 3 < self.grid_size, "Grid size must be >= 4"

@@ -8,3 +8,11 @@ class GameFinishedException(GameException):
 
 class GameLostException(GameException):
     pass
+
+
+class SnakeAteItselfException(GameLostException):
+    pass
+
+
+class SnakeExitedGridException(GameLostException):
+    pass
