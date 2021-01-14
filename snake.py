@@ -59,4 +59,3 @@ class Snake:
             logger.info(self.positions)
             return False
         return True
-

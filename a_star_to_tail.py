@@ -17,22 +17,15 @@ random.seed(123)
 
 
 class Status(a_star.State):
-    def __init__(
-        self, pos, target, grid, history=None, next_to_target=False, longest=False
-    ):
+    def __init__(self, pos, target, grid, history=None):
         self.pos = pos
         self.grid = grid
         self.target = target
         self.history = [] if history is None else history
         self.history.append(self.pos)
-        self.next_to_target = next_to_target
-        self.longest = longest
 
     def __lt__(self, other):
-        if self.longest:
-            return self.dist_to_target() > other.dist_to_target()
-        else:
-            return self.dist_to_target() < other.dist_to_target()
+        return self.dist_to_target() > other.dist_to_target()
 
     def dist_to_target(self):
         return abs(self.pos - self.target)
@@ -43,7 +36,7 @@ class Status(a_star.State):
         gs = self.grid.grid_size
         if self.pos.x >= gs or self.pos.y >= gs:
             return False
-        if len(self.history) != len(set(self.history)):
+        if len(set(self.history)) != len(self.history):
             return False
         return self.pos not in self.grid.snake.positions[:-1]
 
@@ -52,10 +45,7 @@ class Status(a_star.State):
             yield Status(n, self.target, self.grid, self.history[:])
 
     def is_complete(self):
-        if self.next_to_target:
-            return abs(self.pos - self.target) == 1
-        else:
-            return self.pos == self.target
+        return abs(self.pos - self.target) == 1
 
 
 def extract_action(head_pos, best_path):
@@ -79,33 +69,18 @@ def take_a_star_actions(game, render=False, save=True):
             try:
                 best_path = a_star.a_star(
                     Status(
-                        game.game_grid.snake.head_position,
-                        game.game_grid.food_position,
+                        game.game_grid.snake.positions[-1],
+                        game.game_grid.snake.positions[0],
                         game.game_grid,
                     ),
-                    tag_func=lambda x: hash(x.pos),
+                    tag_func=lambda x: f'{x.pos}_{len(x.history)}',
+                    return_status=True
                 )
                 action = extract_action(
                     game.game_grid.snake.head_position, best_path.history
                 )
             except a_star.AStarException:
-                # Can't find the food, try and follow the tail until the food becomes accessible again
-                try:
-                    best_tail_path = a_star.a_star(
-                        Status(
-                            game.game_grid.snake.head_position,
-                            game.game_grid.snake.positions[0],
-                            game.game_grid,
-                            next_to_target=True,
-                            longest=False,
-                        ),
-                        tag_func=lambda x: "".join([str(i) for i in x.history]),
-                    )
-                    action = extract_action(
-                        game.game_grid.snake.head_position, best_tail_path.history
-                    )
-                except a_star.AStarException:
-                    action = None
+                action = None
                 pass
             game.game_grid.snake.turn(action)
             game.game_grid.step()
@@ -118,11 +93,11 @@ def take_a_star_actions(game, render=False, save=True):
 
 
 def single_game(game_num):
-    g = game.SnakeGame(game_type="a_star_fallback_tail")
+    g = game.SnakeGame(game_type="longest_path")
     take_a_star_actions(g)
     g.save_game(f"_{game_num}_")
 
 
-# Parallel(n_jobs=-1)(delayed(single_game)(i) for i in tqdm(range(1_000_000_000)))
+#Parallel(n_jobs=-1)(delayed(single_game)(i) for i in tqdm(range(1_000_000_000)))
 
-single_game(338)
+single_game(0)

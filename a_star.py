@@ -7,8 +7,8 @@ DEBUG = False
 class AStarException(Exception):
     pass
 
-
-def a_star(initial_state, tag_func=str, return_status=False):
+#@profile
+def a_star(initial_state, tag_func=str, return_status=False, max_attempts=None):
     """Perform the A* search algorithm
     The initial_state should be a subclass of State (below)
     that implements:
@@ -41,11 +41,18 @@ def a_star(initial_state, tag_func=str, return_status=False):
         best_option = heapq.heappop(possible_states)
         n_tests += 1
         if DEBUG:
-            print(f"Test {n_tests}, n_options {len(possible_states)}, best_option: {tag_func(best_option)}")
+            print(
+                f"Test {n_tests}, n_options {len(possible_states)}, best_option: {tag_func(best_option)}"
+            )
         if best_option.is_complete():
             if DEBUG:
-                print('Search complete')
+                print("Search complete")
             is_complete = True
+            break
+
+        if max_attempts is not None and n_tests > max_attempts:
+            if DEBUG:
+                print(f'No solution found after {n_tests:,} attempts, failing out')
             break
 
         for s in best_option.all_possible_next_states():

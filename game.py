@@ -2,6 +2,9 @@ import datetime
 import logging
 import os
 
+import pandas as pd
+import random
+
 import exceptions
 import grid
 
@@ -10,8 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 class SnakeGame:
-    #@profile
-    def __init__(self, grid_size=10, game_type="human"):
+    # @profile
+    def __init__(self, grid_size=10, game_type="human", random_seed=None):
+        self.random_seed = random_seed
+        if self.random_seed is not None:
+            random.seed(self.random_seed)
         self.grid_size = grid_size
         assert 3 < self.grid_size, "Grid size must be >= 4"
         self.game_grid = grid.GameGrid(self.grid_size)
@@ -33,12 +39,16 @@ class SnakeGame:
         except exceptions.GameException:
             logger.info("Game Over")
 
-    def save_game(self, extra_save_name=''):
+    def save_game(self, extra_save_name=""):
+        # Head Pos, Tail Pos, Food Pos, Snake Length, Grid Size
         f_name = os.path.join(
-            self.output_dir, datetime.datetime.now().strftime(r"%Y_%m_%d_%H_%M_%S") + extra_save_name + '.txt'
+            self.output_dir,
+            datetime.datetime.now().strftime(r"%Y_%m_%d_%H_%M_%S")
+            + extra_save_name
+            + ".csv",
         )
         with open(f_name, "w") as f:
-            f.write(os.linesep.join(self.game_grid.history))
+            pd.DataFrame(self.game_grid.history).to_csv(f)
 
     @staticmethod
     def wait_for_input():
@@ -52,4 +62,3 @@ class SnakeGame:
                 )
             except KeyError:
                 print('Error, enter "l","r" or nothing')
-
