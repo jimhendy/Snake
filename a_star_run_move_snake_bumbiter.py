@@ -1,3 +1,4 @@
+# import glob
 import logging
 import random
 
@@ -7,9 +8,8 @@ from tqdm import tqdm
 import a_star
 import exceptions
 import game
-
-from collections import OrderedDict
-import json
+import time
+from ordered_set import OrderedSet
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -17,77 +17,86 @@ random.seed(123)
 
 
 class Status(a_star.State):
-    def __init__(
-        self,
-        snake,
-        target,
-        grid,
-        tail_position_at_food=None,
-        history=None,
-        bite_bum=True
-    ):
+
+    __slots__ = ["snake", "pos", "grid", "target", "history", "extra_history"]
+
+    def __init__(self, snake, target, grid, history=None, extra_history=None):
         self.snake = snake  # COPY of the game.grid.snake.positions (tail at the start)
-        self.pos = self.snake[-1]
+        self.pos = self.snake.last()
         self.grid = grid
         self.target = target
-        self.history = OrderedDict() if history is None else history
-        #self.history.append(self.pos)
-        self.history.__setitem__(self.pos, None)
-        self.tail_position_at_food = tail_position_at_food
-        self.bite_bum = bite_bum
+        self.history = OrderedSet() if history is None else history
+        self.history.add(self.pos)
+        self.extra_history = extra_history
 
     def __lt__(self, other):
         return self.dist_to_target() < other.dist_to_target()
-    
+
     def dist_to_target(self):
-        if (not self.bite_bum) or (self.target not in self.history.keys()):
-            return abs(self.pos - self.target) * self.grid.grid_size ** 2 + 1
+        distance = abs(self.pos - self.target)
+        if self.extra_history is None:
+            return distance * self.grid.grid_size ** 2 + 1
         else:
-            return abs(self.pos - self.tail_position_at_food)
+            return distance
 
     def is_valid(self):
-        if self.pos.x < 0 or self.pos.y < 0:
-            return False
-        gs = self.grid.grid_size
-        if self.pos.x >= gs or self.pos.y >= gs:
-            return False
-        #if len(self.history) != len(self.snake):
-        #    return False
-        return self.pos not in self.snake[:-1]
+        return True
 
     def all_possible_next_states(self):
         for n in self.pos.nb4():
+
+            if n.x < 0 or n.y < 0:
+                continue
+
+            if n.x >= self.grid.grid_size or n.y >= self.grid.grid_size:
+                continue
+
             new_snake = self.snake.copy()
-            new_snake.append(n)
-            if n != self.target:
-                new_snake = new_snake[1:]
-                tail_position_at_food = self.tail_position_at_food
+
+            if (n != self.target) or (
+                (n == self.target) and (self.extra_history is not None)
+            ):
+                new_snake.remove_first()
+
+            if n in new_snake:
+                continue
+            new_snake.add(n)
+
+            if (n == self.target) and (self.extra_history is None):
+                extra_history = self.history.copy()
+                history = None
+                target = self.snake.first()
             else:
-                tail_position_at_food = self.snake[0]
+                extra_history = (
+                    self.extra_history
+                )  # Don't need to copy as never altered
+                history = self.history.copy()
+                target = self.target
+
             yield Status(
-                new_snake,
-                self.target,
-                self.grid,
-                tail_position_at_food,
-                self.history.copy(),
-                bite_bum=self.bite_bum
+                snake=new_snake,
+                target=target,
+                grid=self.grid,
+                history=history,
+                extra_history=extra_history,
             )
 
     def is_complete(self):
-        if self.bite_bum:
-            return (
-                self.target in self.history.keys()
-                and abs(self.pos - self.tail_position_at_food) == 1
-            )
-        else:
-            return self.pos == self.target
+        return (self.pos == self.target) and (self.extra_history is not None)
+
+    def get_steps(self):
+        return self.extra_history.get() + [self.history.first()]
+
+    def hash(self):
+        hash_string = ""
+        if self.extra_history is not None:
+            hash_string += str(self.extra_history)
+        hash_string += "@" + str(self.history)
+        return hash_string
 
 
-def extract_action(head_pos, best_path):
-    if len(best_path) < 2:
-        return None
-    best_path.popitem(last=False)
-    diff = best_path.popitem(last=False)[0] - head_pos
+def extract_action(head_pos, next_pos):
+    diff = next_pos - head_pos
     if diff.x == 1:
         return "right"
     elif diff.x == -1:
@@ -97,74 +106,56 @@ def extract_action(head_pos, best_path):
     else:
         return "up"
 
-#@profile
-def take_a_star_actions(game, render=False, save=True):
+
+# @profile
+def take_a_star_actions(game, render=False, save=True, max_steps=None):
+    n_steps = 0
     game.game_grid.log_status(render=render, save=save)
     try:
         while True:
             try:
                 best_path = a_star.a_star(
                     Status(
-                        game.game_grid.snake.positions,
-                        game.game_grid.food_position,
-                        game.game_grid,
-                        bite_bum=True
+                        snake=game.game_grid.snake.positions,
+                        target=game.game_grid.food_position,
+                        grid=game.game_grid,
                     ),
-                    tag_func=lambda x: tuple(x.history.keys()),
-                    max_attempts=10_000,
+                    tag_func=lambda x: x.hash(),
+                    max_attempts=50_000,
                 )
-                action = extract_action(
-                    game.game_grid.snake.head_position, best_path.history
-                )
+                actions = []
+                steps = best_path.get_steps()
+                for current, upcoming in zip(steps[:-1], steps[1:]):
+                    actions.append(extract_action(current, upcoming))
             except a_star.AStarException:
-                # Fallback to biting own bum
-                try:
-                    best_path = a_star.a_star(
-                        Status(
-                            game.game_grid.snake.positions,
-                            game.game_grid.snake.positions[0],
-                            game.game_grid,
-                            bite_bum=False
-                        ),
-                        tag_func=lambda x: x.pos
-                    )
-                    action = extract_action(
-                        game.game_grid.snake.head_position, best_path.history
-                    )
-                except a_star.AStarException:
-                    # Fallback fallback to just eating the food
-                    try:
-                        best_path = a_star.a_star(
-                            Status(
-                                game.game_grid.snake.positions,
-                                game.game_grid.food_position,
-                                game.game_grid,
-                                bite_bum=False
-                            ),
-                            tag_func=lambda x: x.pos
-                        )
-                        action = extract_action(
-                            game.game_grid.snake.head_position, best_path.history
-                        )
-                    except a_star.AStarException:
-                        # print('No solution found')
-                        action = None
-            # print(action)
-            game.game_grid.snake.turn(action)
-            game.game_grid.step()
-            game.game_grid.log_status(render=render, save=save)
-    except (exceptions.SnakeExitedGridException, exceptions.GameFinishedException) as e:
+                actions = [None]
+
+            for a in actions:
+                # print(a)
+                game.game_grid.snake.turn(a)
+                game.game_grid.step()
+                game.game_grid.log_status(render=render, save=save)
+                n_steps += 1
+                if max_steps and n_steps > max_steps:
+                    break
+
+    except (exceptions.SnakeExitedGridException, exceptions.GameFinishedException):
         # print(True)
         return True
-    except exceptions.GameLostException as e:
+    except exceptions.GameLostException:
         # print(False)
         return False
 
 
+output_folder = "a_star_bumbiter"
+
+
 def single_game(game_num):
-    g = game.SnakeGame(game_type="a_star_bumbiter", random_seed=game_num)
-    take_a_star_actions(g)
-    g.save_game(f"_{game_num}_")
+    save_name_format = f"_{game_num}_"
+    # if glob.glob(os.path.join)
+    g = game.SnakeGame(game_type="ordered_set", random_seed=game_num)
+    take_a_star_actions(g, max_steps=10_000)
+    g.save_game(save_name_format)
 
 
 Parallel(n_jobs=-1)(delayed(single_game)(i) for i in tqdm(range(1_000_000_000)))

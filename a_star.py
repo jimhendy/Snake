@@ -32,6 +32,7 @@ def a_star(initial_state, tag_func=str, return_status=False, max_attempts=None):
     """
 
     possible_states = [initial_state]
+    heapq.heapify(possible_states)
     seen = set()
     n_tests = 0
     is_complete = False

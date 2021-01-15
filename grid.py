@@ -1,7 +1,6 @@
 import os
-# import numpy as np
+
 import random
-from functools import lru_cache
 
 import exceptions
 import snake
@@ -58,8 +57,8 @@ class GameGrid:
                 {
                     "Head_Pos_x": self.snake.head_position.x,
                     "Head_Pos_y": self.snake.head_position.y,
-                    "Tail_Pos_x": self.snake.positions[0].x,
-                    "Tail_Pos_y": self.snake.positions[0].y,
+                    "Tail_Pos_x": self.snake.positions.first().x,
+                    "Tail_Pos_y": self.snake.positions.first().y,
                     "Food_Pos_x": self.food_position.x,
                     "Food_Pos_y": self.food_position.y,
                     "Snake_Length": len(self.snake.positions),
@@ -76,7 +75,7 @@ class GameGrid:
 
     def print_grid(self):
         grid = ["".join(row) for row in self.game_grid]
-        for sp in self.snake.positions:
+        for sp in self.snake.positions.data.keys():
             grid[sp.y] = GameGrid.insert_into_str(
                 grid[sp.y], CHARACTERS["SNAKE_BODY"], sp.x
             )
@@ -93,7 +92,7 @@ class GameGrid:
 
     # @profile
     def step(self):
-        self.snake.move(self)
+        self.snake.move()
 
         if not self.snake.is_valid_inside_grid():
             raise exceptions.GameLostException
@@ -105,7 +104,8 @@ class GameGrid:
                 self.new_food_position(ignore_positions=self.snake.positions),
                 CHARACTERS["FOOD"],
             )
-        self.snake.clip_tail()
+        else:
+            self.snake.clip_tail()
 
         if not self.snake.is_valid_crossed_itself():
             raise exceptions.GameLostException

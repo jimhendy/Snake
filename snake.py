@@ -1,6 +1,6 @@
 import logging
 
-import grid
+from ordered_set import OrderedSet
 from point import Point
 
 logger = logging.getLogger(__name__)
@@ -20,21 +20,23 @@ class Snake:
         self.direction_step = self.directions[self.direction_string]
 
         self.head_position = Point(self.grid_size // 2, self.grid_size // 2)
-        self.positions = [  # Tail at the start, head at the end
-            self.head_position - self.direction_step,
-            self.head_position.copy(),
-        ]
+        self.positions = OrderedSet(
+            [  # Tail at the start, head at the end
+                self.head_position - self.direction_step,
+                self.head_position.copy(),
+            ]
+        )
         self.length = len(self.positions)
         self.steps = 0
         pass
 
-    def move(self, game_grid):
+    def move(self):
         self.head_position += self.direction_step
         self.steps += 1
-        self.positions.append(self.head_position.copy())
+        self.positions.add(self.head_position.copy())
 
     def clip_tail(self):
-        self.positions = self.positions[-self.length :]
+        self.positions.remove_first()
 
     def turn(self, direction_string):
         if direction_string:
@@ -42,7 +44,7 @@ class Snake:
             self.direction_step = self.directions[self.direction_string]
 
     def is_valid_inside_grid(self):
-        for pos in self.positions:
+        for pos in self.positions.data:
             if (
                 pos.x < 0
                 or pos.y < 0
@@ -54,7 +56,7 @@ class Snake:
         return True
 
     def is_valid_crossed_itself(self):
-        if len(set(self.positions)) != self.length:
+        if self.positions.n_unique_items() != self.positions.n_current_items:
             logger.info("Snake crossed itself")
             logger.info(self.positions)
             return False

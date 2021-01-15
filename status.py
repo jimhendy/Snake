@@ -21,7 +21,7 @@ class Status(State):
         gs = self.grid.grid_size
         if self.pos.x >= gs or self.pos.y >= gs:
             return False
-        return self.pos not in self.grid.snake.positions[:-1]
+        return self.grid.snake.positions.data[self.pos] < 2
 
     def all_possible_next_states(self):
         for n in self.pos.nb4():
