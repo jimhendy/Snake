@@ -1,19 +1,20 @@
 import datetime
 import logging
 import os
-
-import pandas as pd
 import random
 
-import exceptions
-import grid
+import pandas as pd
+
+from game import exceptions, grid
 
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 
 class SnakeGame:
-    # @profile
+
+    manual_keys = {"4": "left", "6": "right", "8": "up", "2": "down"}
+
     def __init__(self, grid_size=10, game_type="human", random_seed=None):
         self.random_seed = random_seed
         if self.random_seed is not None:
@@ -29,7 +30,7 @@ class SnakeGame:
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
-    def run(self, render=False, save=False):
+    def manual_run(self, render=False, save=False):
         self.game_grid.log_status(render, save)
         try:
             while True:
@@ -38,6 +39,8 @@ class SnakeGame:
                 self.game_grid.log_status(render, save)
         except exceptions.GameException:
             logger.info("Game Over")
+            if save:
+                self.save_game(f'_{self.random_seed}_')
 
     def save_game(self, extra_save_name=""):
         # Head Pos, Tail Pos, Food Pos, Snake Length, Grid Size
@@ -53,12 +56,7 @@ class SnakeGame:
     @staticmethod
     def wait_for_input():
         while True:
-            try:
-                direction = input("Enter a direction to push (4, 6 ,8 ,2 ,5, q) : ")
-                if direction == "q":
-                    raise exceptions.GameFinishedException("Game Exited")
-                return {"4": "left", "6": "right", "8": "up", "2": "down"}.get(
-                    direction
-                )
-            except KeyError:
-                print('Error, enter "l","r" or nothing')
+            direction = input("Enter a direction to push (4, 6 ,8 ,2 ,5, q) : ")
+            if direction == "q":
+                raise exceptions.GameFinishedException("Game Exited")
+            return SnakeGame.manual_keys.get(direction)

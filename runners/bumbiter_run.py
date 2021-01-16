@@ -1,19 +1,11 @@
 # import glob
 import logging
-import random
 
-from joblib import Parallel, delayed
-from tqdm import tqdm
-
-import a_star
-import exceptions
-import game
-import time
-from ordered_set import OrderedSet
+from game import exceptions
+from utils import a_star
+from utils.ordered_set import OrderedSet
 
 logging.basicConfig(level=logging.ERROR)
-
-random.seed(123)
 
 
 class Status(a_star.State):
@@ -147,17 +139,6 @@ def take_a_star_actions(game, render=False, save=True, max_steps=None):
         return False
 
 
-output_folder = "a_star_bumbiter"
-
-
-def single_game(game_num):
-    save_name_format = f"_{game_num}_"
-    # if glob.glob(os.path.join)
-    g = game.SnakeGame(game_type="ordered_set", random_seed=game_num)
-    take_a_star_actions(g, max_steps=10_000)
-    g.save_game(save_name_format)
-
-
-Parallel(n_jobs=-1)(delayed(single_game)(i) for i in tqdm(range(1_000_000_000)))
-
-#single_game(0)
+def single_game(game, save_name_format):
+    take_a_star_actions(game, max_steps=10_000)
+    game.save_game(save_name_format)

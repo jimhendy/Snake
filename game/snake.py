@@ -1,7 +1,7 @@
 import logging
 
-from ordered_set import OrderedSet
-from point import Point
+from utils.ordered_set import OrderedSet
+from utils.point import Point
 
 logger = logging.getLogger(__name__)
 

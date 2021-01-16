@@ -1,10 +1,9 @@
 import os
-
 import random
 
-import exceptions
-import snake
-from point import Point
+from utils.point import Point
+
+from game import exceptions, snake
 
 CHARACTERS = {
     "EMPTY": " ",
